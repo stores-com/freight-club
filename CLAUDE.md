@@ -98,6 +98,10 @@ for the slowest carrier, so don't lower the default below that.
 - The rate response echoes the reference as `OrderReferenceId` (lowercase d); booking and order
   status echo `OrderReferenceID`; `exportOrders` calls it `CustomerPONumber`
 - An invalid token returns a plain 401 Unauthorized
+- `getOrderStatus` never reflects cancellation — a cancelled order's `CurrentStatus` stays
+  `Booked`, and `cancelShipment` on an already-cancelled order succeeds again
+- `exportOrders` dates orders in Freight Club's own timezone (Pacific), so UTC's "today" can be
+  a day ahead of the order's date — span the export window a day in each direction
 
 ## API Configuration
 

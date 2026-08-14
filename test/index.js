@@ -61,14 +61,12 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
         assert.ok(cheapestQuote.ServiceLevelDescription.length);
     });
 
-    t.test('getRate, bookShipment, getBol, downloadBol, getLabel, getOrderStatus, exportOrders and cancelShipment', { timeout: 220000 }, async () => {
+    // Rating and booking run as setup because every other method needs their output; each API
+    // still gets its own test, and a subtest's promise resolves even when it fails, so
+    // cancelShipment always runs and no failed assertion strands a booked sandbox order
+    t.test('booked shipment', { concurrency: true, timeout: 220000 }, async (t) => {
         const rateRequest = createRateRequest();
         const rate = await freightClub.getRate(rateRequest, { maxTime: 30 });
-
-        assert.match(rate.Quote, /^\d+$/);
-        assert.strictEqual(rate.OrderReferenceId, rateRequest.OrderReferenceID);
-        assert.strictEqual(rate.TotalNetCharge.Unit, 'USD');
-        assert.ok(rate.TotalNetCharge.Value > 0);
 
         // Sandbox carrier registration is slow and highly variable (15s to over 60s)
         const booking = await freightClub.bookShipment({
@@ -87,60 +85,76 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
             ShipmentInformation: { Boxes: [box] }
         }, { timeout: 180000 });
 
-        assert.match(booking.ConfirmationNumber, /^FC\d+T\d+$/);
-        assert.ok(Number(booking.ShipmentNumber) > 0);
-        assert.match(booking.Message, /successfully/);
+        await Promise.all([
+            t.test('getRate', () => {
+                assert.match(rate.Quote, /^\d+$/);
+                assert.strictEqual(rate.OrderReferenceId, rateRequest.OrderReferenceID);
+                assert.strictEqual(rate.TotalNetCharge.Unit, 'USD');
+                assert.ok(rate.TotalNetCharge.Value > 0);
+            }),
 
-        // The export's to date is exclusive: from=today, to=today returns nothing
-        const today = new Date().toISOString().substring(0, 10);
-        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+            t.test('bookShipment', () => {
+                assert.match(booking.ConfirmationNumber, /^FC\d+T\d+$/);
+                assert.ok(Number(booking.ShipmentNumber) > 0);
+                assert.match(booking.Message, /successfully/);
+            }),
 
-        const responses = await Promise.all([
-            freightClub.getBol(booking.ConfirmationNumber, { contentBase64Needed: true }),
-            freightClub.downloadBol(booking.ConfirmationNumber, { shipmentlabelFormatType: 'Pdf' }),
-            freightClub.getLabel(booking.ConfirmationNumber),
-            freightClub.getOrderStatus({ OrderID: booking.ShipmentNumber }),
-            freightClub.exportOrders({ from: today, to: tomorrow })
+            t.test('getBol', async () => {
+                const bol = await freightClub.getBol(booking.ConfirmationNumber, { contentBase64Needed: true });
+
+                assert.strictEqual(bol.BookingConfirmationNumber, booking.ConfirmationNumber);
+                assert.strictEqual(String(bol.ShipmentNumber), String(booking.ShipmentNumber));
+                assert.match(bol.TrackingNumber, /^FCT\d+$/);
+                assert.ok(bol.CarrierWayBill.length);
+                assert.match(bol.BolURL, /^https:\/\//);
+                assert.strictEqual(Buffer.from(bol.ContentBase64, 'base64').subarray(0, 4).toString(), '%PDF');
+            }),
+
+            t.test('downloadBol', async () => {
+                const bolDocument = await freightClub.downloadBol(booking.ConfirmationNumber, { shipmentlabelFormatType: 'Pdf' });
+
+                assert.ok(Buffer.isBuffer(bolDocument));
+                assert.strictEqual(bolDocument.subarray(0, 4).toString(), '%PDF');
+            }),
+
+            t.test('getLabel', async () => {
+                const label = await freightClub.getLabel(booking.ConfirmationNumber);
+
+                assert.strictEqual(label.BookingConfirmationNumber, booking.ConfirmationNumber);
+                assert.strictEqual(String(label.ShipmentNumber), String(booking.ShipmentNumber));
+                assert.match(label.LabelURL, /^https:\/\//);
+            }),
+
+            t.test('getOrderStatus', async () => {
+                const orderStatus = (await freightClub.getOrderStatus({ OrderID: booking.ShipmentNumber }))[0];
+
+                assert.strictEqual(Number(orderStatus.OrderID), Number(booking.ShipmentNumber));
+                assert.strictEqual(orderStatus.ConfirmationNumber, booking.ConfirmationNumber);
+                assert.strictEqual(orderStatus.OrderReferenceID, rateRequest.OrderReferenceID);
+                assert.match(orderStatus.TrackingNo, /^FCT\d+$/);
+                assert.ok(orderStatus.Carrier.length);
+                assert.match(orderStatus.CurrentStatus, /^(Booked|Pending Pickup)$/);
+                assert.strictEqual(orderStatus.Dates.ScheduledPickupDate, `${pickupDate.substring(5, 7)}-${pickupDate.substring(8, 10)}-${pickupDate.substring(0, 4)}`);
+            }),
+
+            t.test('exportOrders', async () => {
+                // The export's to date is exclusive, and Freight Club dates orders in its own timezone
+                // (Pacific), so UTC's date can be a day ahead of the order's — span a day each direction
+                const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+                const dayAfterTomorrow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+                const orders = await freightClub.exportOrders({ from: yesterday, to: dayAfterTomorrow });
+                const exportedOrder = orders.find(order => String(order.OrderID) === String(booking.ShipmentNumber));
+
+                assert.ok(exportedOrder);
+                assert.strictEqual(exportedOrder.CustomerPONumber, rateRequest.OrderReferenceID);
+            })
         ]);
 
-        const bol = responses[0];
+        await t.test('cancelShipment', async () => {
+            const cancellation = await freightClub.cancelShipment(booking.ConfirmationNumber);
 
-        assert.strictEqual(bol.BookingConfirmationNumber, booking.ConfirmationNumber);
-        assert.strictEqual(String(bol.ShipmentNumber), String(booking.ShipmentNumber));
-        assert.match(bol.TrackingNumber, /^FCT\d+$/);
-        assert.ok(bol.CarrierWayBill.length);
-        assert.match(bol.BolURL, /^https:\/\//);
-        assert.strictEqual(Buffer.from(bol.ContentBase64, 'base64').subarray(0, 4).toString(), '%PDF');
-
-        const bolDocument = responses[1];
-
-        assert.ok(Buffer.isBuffer(bolDocument));
-        assert.strictEqual(bolDocument.subarray(0, 4).toString(), '%PDF');
-
-        const label = responses[2];
-
-        assert.strictEqual(label.BookingConfirmationNumber, booking.ConfirmationNumber);
-        assert.strictEqual(String(label.ShipmentNumber), String(booking.ShipmentNumber));
-        assert.match(label.LabelURL, /^https:\/\//);
-
-        const orderStatus = responses[3][0];
-
-        assert.strictEqual(Number(orderStatus.OrderID), Number(booking.ShipmentNumber));
-        assert.strictEqual(orderStatus.ConfirmationNumber, booking.ConfirmationNumber);
-        assert.strictEqual(orderStatus.OrderReferenceID, rateRequest.OrderReferenceID);
-        assert.match(orderStatus.TrackingNo, /^FCT\d+$/);
-        assert.ok(orderStatus.Carrier.length);
-        assert.match(orderStatus.CurrentStatus, /^(Booked|Pending Pickup)$/);
-        assert.strictEqual(orderStatus.Dates.ScheduledPickupDate, `${pickupDate.substring(5, 7)}-${pickupDate.substring(8, 10)}-${pickupDate.substring(0, 4)}`);
-
-        const exportedOrder = responses[4].find(order => String(order.OrderID) === String(booking.ShipmentNumber));
-
-        assert.ok(exportedOrder);
-        assert.strictEqual(exportedOrder.CustomerPONumber, rateRequest.OrderReferenceID);
-
-        const cancellation = await freightClub.cancelShipment(booking.ConfirmationNumber);
-
-        assert.match(cancellation.Message, /successfully processed your shipment cancellation/);
+            assert.match(cancellation.Message, /successfully processed your shipment cancellation/);
+        });
     });
 
     t.test('getShipmentTracking', async () => {
@@ -153,7 +167,7 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
         });
     });
 
-    t.test('exportOrders', async () => {
+    t.test('exportOrders without a date range', async () => {
         // The API documentation says an export without parameters returns the current day's orders; the API actually requires from and to
         await assert.rejects(freightClub.exportOrders(), err => {
             assert.ok(err instanceof HttpError);
