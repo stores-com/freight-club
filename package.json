@@ -20,6 +20,9 @@
     ],
     "license": "MIT",
     "name": "freight-club",
+    "publishConfig": {
+        "access": "public"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/stores-com/freight-club.git"
