@@ -1,0 +1,33 @@
+{
+    "dependencies": {
+        "@stores.com/http-error": "~1.2.0"
+    },
+    "description": "The Freight Club API is an interface that allows you to set up an integrated experience between your daily operations and our application. APIs give you the ability to manage all your Parcel or LTL shipments with capabilities that include rating shipments, creating Bills of Lading or parcel labels, booking shipments with carriers and getting tracking information from those bookings.",
+    "devDependencies": {
+        "@eslint/js": "*",
+        "globals": "*"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "keywords": [
+        "freight",
+        "freight club",
+        "logistics",
+        "ltl",
+        "shipping",
+        "tracking"
+    ],
+    "license": "MIT",
+    "name": "freight-club",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/stores-com/freight-club.git"
+    },
+    "scripts": {
+        "coveralls": "node --test --test-force-exit --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info test && coveralls < lcov.info",
+        "test": "node --test --test-force-exit test",
+        "test:only": "node --test --test-force-exit --test-only test"
+    },
+    "version": "0.0.1"
+}
