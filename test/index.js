@@ -26,7 +26,15 @@ const box = {
 
 const dropOffAddress = { Address1: '5678 Destination Street', City: 'Action', Country: 'US', LocationType: 'Residential', ProvinceState: 'MT', ZipCode: '59002' };
 const pickupAddress = { Address1: '1234 Source Street', City: 'Seattle', Country: 'US', LocationType: 'Commercial', ProvinceState: 'WA', ZipCode: '98101' };
-const pickupDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+// Freight Club moves a weekend pickup request to the following Monday, so a pickup date landing
+// on a Saturday or Sunday does not come back from getOrderStatus as the date that was requested
+const pickup = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+while (pickup.getUTCDay() === 0 || pickup.getUTCDay() === 6) {
+    pickup.setUTCDate(pickup.getUTCDate() + 1);
+}
+
+const pickupDate = pickup.toISOString().substring(0, 10);
 
 const createRateRequest = () => ({
     Accessorials: [],
