@@ -5,20 +5,26 @@ const HttpError = require('@stores.com/http-error');
  *
  * @private
  * @param {Response} res - A fetch Response.
+ * @param {string} url - The URL that was requested, which is not res.url once a redirect has been followed.
  * @returns {Promise.<Object>} The parsed JSON body.
- * @throws {Error} If the response is not JSON.
+ * @throws {Error} If the response declares a content type that is not JSON.
  * @throws {HttpError} If the response status is not 200.
  */
-async function parseResponse(res) {
-    if (res.status !== 200) {
-        throw await HttpError.from(res);
-    }
-
-    // Error pages, WAF challenges and marketing sites all arrive with a 200, and res.json() on one throws a parse error naming a character offset
+async function parseResponse(res, url) {
+    /*
+        Checked before the status, because HttpError reads the body: a web page
+        served at any status would otherwise come back as 200kB of markup in
+        err.text. Only when a type is declared — Freight Club's own 401 and 405
+        carry none, and those belong to HttpError.
+    */
     const contentType = res.headers.get('content-type');
 
-    if (!contentType?.includes('json')) {
-        throw new Error(`Freight Club answered ${res.url} with ${contentType || 'no content type'} rather than JSON.`);
+    if (contentType && !contentType.includes('json')) {
+        throw new Error(`Freight Club answered ${url} with ${contentType} rather than JSON${res.redirected ? `, from ${res.url}` : ''}.`);
+    }
+
+    if (res.status !== 200) {
+        throw await HttpError.from(res);
     }
 
     return await res.json();
@@ -55,7 +61,9 @@ function FreightClub(args) {
      * const booking = await freightClub.bookShipment(request, { timeout: 180000 });
      */
     this.bookShipment = async function(request, options = {}) {
-        const res = await fetch(`${_options.url}/Book/BookShipment`, {
+        const url = `${_options.url}/Book/BookShipment`;
+
+        const res = await fetch(url, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -65,7 +73,7 @@ function FreightClub(args) {
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -80,14 +88,16 @@ function FreightClub(args) {
      * const cancellation = await freightClub.cancelShipment('FC59086014T860');
      */
     this.cancelShipment = async function(confirmationNumber, options = {}) {
-        const res = await fetch(`${_options.url}/Cancel/CancelShipment/${encodeURIComponent(confirmationNumber)}`, {
+        const url = `${_options.url}/Cancel/CancelShipment/${encodeURIComponent(confirmationNumber)}`;
+
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -152,7 +162,7 @@ function FreightClub(args) {
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -188,7 +198,7 @@ function FreightClub(args) {
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -229,7 +239,7 @@ function FreightClub(args) {
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -248,14 +258,16 @@ function FreightClub(args) {
      * const statuses = await freightClub.getOrderStatus({ OrderID: '59086014' });
      */
     this.getOrderStatus = async function(query, options = {}) {
-        const res = await fetch(`${_options.url}/api/orders/orderstatus?${new URLSearchParams(query)}`, {
+        const url = `${_options.url}/api/orders/orderstatus?${new URLSearchParams(query)}`;
+
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -288,7 +300,7 @@ function FreightClub(args) {
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -321,7 +333,7 @@ function FreightClub(args) {
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 
     /**
@@ -340,14 +352,16 @@ function FreightClub(args) {
      * const tracking = await freightClub.getShipmentTracking({ shipmentId: '59086014' });
      */
     this.getShipmentTracking = async function(query, options = {}) {
-        const res = await fetch(`${_options.url}/api/tracking/ShipmentTracking?${new URLSearchParams(query)}`, {
+        const url = `${_options.url}/api/tracking/ShipmentTracking?${new URLSearchParams(query)}`;
+
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
-        return await parseResponse(res);
+        return await parseResponse(res, url);
     };
 }
 
