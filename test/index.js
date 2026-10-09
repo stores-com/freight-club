@@ -213,39 +213,11 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
         });
     });
     /*
-        The two tests that do not go to the sandbox. Asserting what the live API
+        The one test that does not go to the sandbox. Asserting what the live API
         serves today would pin the suite to Freight Club's current routing; what
-        these prove is that the client refuses an answer it cannot trust,
-        wherever it came from.
+        this proves is that a 200 is not taken for an answer unless it is JSON,
+        whatever served it.
     */
-    t.test('should throw when a redirect leads somewhere that is not the API', { concurrency: true }, async () => {
-        const server = http.createServer((req, res) => {
-            if (req.url === '/gone') {
-                res.writeHead(404, { 'content-type': 'text/plain' });
-                res.end('nope');
-                return;
-            }
-
-            res.writeHead(301, { location: '/gone' });
-            res.end();
-        });
-
-        await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
-        try {
-            const redirectingFreightClub = new FreightClub({ api_token: apiToken, url: `http://127.0.0.1:${server.address().port}` });
-
-            await assert.rejects(redirectingFreightClub.getRates(createRateRequest(), { maxTime: 20 }), err => {
-                assert.ok(!(err instanceof HttpError));
-                assert.match(err.message, /^Freight Club redirected to http:\/\/127\.0\.0\.1:\d+\/gone, which answered 404\./);
-                assert.match(err.message, /A redirect drops the body of a POST/);
-                return true;
-            });
-        } finally {
-            await new Promise(resolve => server.close(resolve));
-        }
-    });
-
     t.test('should throw when a 200 is not JSON', { concurrency: true }, async () => {
         const server = http.createServer((req, res) => {
             res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });

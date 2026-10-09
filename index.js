@@ -6,35 +6,22 @@ const HttpError = require('@stores.com/http-error');
  * @private
  * @param {Response} res - A fetch Response.
  * @returns {Promise.<Object>} The parsed JSON body.
- * @throws {Error} If the response was redirected, or is not JSON.
+ * @throws {Error} If the response is not JSON.
  * @throws {HttpError} If the response status is not 200.
  */
 async function parseResponse(res) {
-    /*
-        Redirects are followed, as they should be — an endpoint that genuinely
-        moves says so with a 307 or a 308, and following it keeps us working.
-        What a redirect cannot do is carry a POST: a 301, 302 or 303 is rewritten
-        into a GET and the body is dropped, so the request never arrives anywhere
-        and whatever answers is answering something we did not ask. Saying where
-        the answer came from turns "404 Not Found" into something a person can
-        act on, which is the difference between reading this error and hunting
-        for a path that was never wrong.
-    */
-    if (res.redirected && res.status !== 200) {
-        throw new Error(`Freight Club redirected to ${res.url}, which answered ${res.status}. A redirect drops the body of a POST, so this request never reached an endpoint.`);
-    }
-
     if (res.status !== 200) {
         throw await HttpError.from(res);
     }
 
     /*
-        And a 200 is not an answer either unless it is JSON. An error page from a
-        gateway, a WAF challenge or a marketing site arrives with a 200 as often
-        as not, and `res.json()` on one throws a parse error naming a character
-        offset, which tells the person reading it nothing. In October 2026 this
-        was a whole Squarespace page, printed under a purchase order as the
-        reason there were no freight quotes.
+        A 200 is not an answer unless it is JSON. A gateway's error page, a WAF
+        challenge and a marketing site all arrive with one, and `res.json()` on
+        any of them throws a parse error naming a character offset, which tells
+        whoever reads it nothing — in October 2026 a whole Squarespace page was
+        printed under a purchase order as the reason there were no freight
+        quotes. The URL is in the message because it is not always the one that
+        was asked for.
     */
     const contentType = res.headers.get('content-type') || '';
 

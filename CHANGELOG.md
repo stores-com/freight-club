@@ -2,7 +2,7 @@
 
 ## 0.0.3
 
-- Refuse an answer the client cannot trust. Redirects are still followed, but a 301, 302 or 303 rewrites a POST into a GET and drops the body, so the request never reaches an endpoint — a redirected non-200 now says so and names where it landed. And a 200 that is not JSON is refused by content type rather than by a parse error naming a character offset: `/Rate/GetRates` began answering 301 to the marketing site's 404 in October 2026, and the page arrived under a purchase order as the reason there were no freight quotes.
+- Refuse a 200 that is not JSON. A gateway's error page, a WAF challenge and a marketing site all arrive with one, and `res.json()` on any of them throws a parse error naming a character offset — in October 2026 a whole Squarespace page was printed under a purchase order as the reason there were no freight quotes. The error now names the content type and the URL that answered, which is not always the one that was asked for.
 
 ## 0.0.2
 
