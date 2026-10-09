@@ -1,33 +1,45 @@
 const HttpError = require('@stores.com/http-error');
 
 /**
- * Throws for a redirect or any non-200 response and returns the parsed JSON body otherwise.
+ * Throws for anything that is not a JSON 200 and returns the parsed JSON body otherwise.
  *
  * @private
  * @param {Response} res - A fetch Response.
  * @returns {Promise.<Object>} The parsed JSON body.
- * @throws {Error} If the response is a redirect.
+ * @throws {Error} If the response was redirected, or is not JSON.
  * @throws {HttpError} If the response status is not 200.
  */
 async function parseResponse(res) {
     /*
-        A redirect is never an answer here, so every request asks for it rather
-        than following it. Left to itself fetch follows one and turns a POST into
-        a GET on the way, so an endpoint that has been retired comes back as a
-        200 carrying somebody's web page instead of as a failure: in October 2026
-        /Rate/GetRates began answering 301 to the marketing site's 404, and a rate
-        quote read as an unparseable page rather than as a moved endpoint.
-
-        It is its own error rather than an HttpError because there is no body to
-        read and nothing about it is worth retrying — the location is the whole
-        of what the caller needs.
+        Redirects are followed, as they should be — an endpoint that genuinely
+        moves says so with a 307 or a 308, and following it keeps us working.
+        What a redirect cannot do is carry a POST: a 301, 302 or 303 is rewritten
+        into a GET and the body is dropped, so the request never arrives anywhere
+        and whatever answers is answering something we did not ask. Saying where
+        the answer came from turns "404 Not Found" into something a person can
+        act on, which is the difference between reading this error and hunting
+        for a path that was never wrong.
     */
-    if (res.status >= 300 && res.status < 400) {
-        throw new Error(`Freight Club redirected ${res.url} to ${res.headers.get('location')}. The endpoint has moved.`);
+    if (res.redirected && res.status !== 200) {
+        throw new Error(`Freight Club redirected to ${res.url}, which answered ${res.status}. A redirect drops the body of a POST, so this request never reached an endpoint.`);
     }
 
     if (res.status !== 200) {
         throw await HttpError.from(res);
+    }
+
+    /*
+        And a 200 is not an answer either unless it is JSON. An error page from a
+        gateway, a WAF challenge or a marketing site arrives with a 200 as often
+        as not, and `res.json()` on one throws a parse error naming a character
+        offset, which tells the person reading it nothing. In October 2026 this
+        was a whole Squarespace page, printed under a purchase order as the
+        reason there were no freight quotes.
+    */
+    const contentType = res.headers.get('content-type') || '';
+
+    if (!contentType.includes('json')) {
+        throw new Error(`Freight Club answered ${res.url} with ${contentType || 'no content type'} rather than JSON.`);
     }
 
     return await res.json();
@@ -71,7 +83,6 @@ function FreightClub(args) {
                 'Content-Type': 'application/json'
             },
             method: 'POST',
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -94,7 +105,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -124,7 +134,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -161,7 +170,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -198,7 +206,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -240,7 +247,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -267,7 +273,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -301,7 +306,6 @@ function FreightClub(args) {
                 'Content-Type': 'application/json'
             },
             method: 'POST',
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -335,7 +339,6 @@ function FreightClub(args) {
                 'Content-Type': 'application/json'
             },
             method: 'POST',
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -362,7 +365,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
