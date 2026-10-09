@@ -1,5 +1,6 @@
 const assert = require('node:assert');
 const crypto = require('node:crypto');
+const http = require('node:http');
 const test = require('node:test');
 
 const HttpError = require('@stores.com/http-error');
@@ -210,5 +211,31 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
         t.test('getRates', async () => {
             await assert.rejects(unauthorizedFreightClub.getRates(createRateRequest(), { maxTime: 20 }), assertUnauthorized);
         });
+    });
+    /*
+        The one test that does not go to the sandbox. A redirect cannot be asked
+        of the live API on purpose, and asserting the one it serves today would
+        pin a test to Freight Club's current routing — the point is that the
+        client refuses to follow one wherever it comes from.
+    */
+    t.test('should throw rather than follow a redirect', { concurrency: true }, async () => {
+        const server = http.createServer((req, res) => {
+            res.writeHead(301, { location: 'https://www.freightclub.com/404' });
+            res.end();
+        });
+
+        await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+
+        try {
+            const redirectingFreightClub = new FreightClub({ api_token: apiToken, url: `http://127.0.0.1:${server.address().port}` });
+
+            await assert.rejects(redirectingFreightClub.getRates(createRateRequest(), { maxTime: 20 }), err => {
+                assert.ok(!(err instanceof HttpError));
+                assert.match(err.message, /^Freight Club redirected http:\/\/127\.0\.0\.1:\d+\/Rate\/GetRates\?maxTime=20 to https:\/\/www\.freightclub\.com\/404\. The endpoint has moved\.$/);
+                return true;
+            });
+        } finally {
+            await new Promise(resolve => server.close(resolve));
+        }
     });
 });
