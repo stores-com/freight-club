@@ -1,33 +1,24 @@
 const HttpError = require('@stores.com/http-error');
 
 /**
- * Throws for a redirect or any non-200 response and returns the parsed JSON body otherwise.
+ * Throws for anything that is not a JSON 200 and returns the parsed JSON body otherwise.
  *
  * @private
  * @param {Response} res - A fetch Response.
  * @returns {Promise.<Object>} The parsed JSON body.
- * @throws {Error} If the response is a redirect.
+ * @throws {Error} If the response is not JSON.
  * @throws {HttpError} If the response status is not 200.
  */
 async function parseResponse(res) {
-    /*
-        A redirect is never an answer here, so every request asks for it rather
-        than following it. Left to itself fetch follows one and turns a POST into
-        a GET on the way, so an endpoint that has been retired comes back as a
-        200 carrying somebody's web page instead of as a failure: in October 2026
-        /Rate/GetRates began answering 301 to the marketing site's 404, and a rate
-        quote read as an unparseable page rather than as a moved endpoint.
-
-        It is its own error rather than an HttpError because there is no body to
-        read and nothing about it is worth retrying — the location is the whole
-        of what the caller needs.
-    */
-    if (res.status >= 300 && res.status < 400) {
-        throw new Error(`Freight Club redirected ${res.url} to ${res.headers.get('location')}. The endpoint has moved.`);
-    }
-
     if (res.status !== 200) {
         throw await HttpError.from(res);
+    }
+
+    // Error pages, WAF challenges and marketing sites all arrive with a 200, and res.json() on one throws a parse error naming a character offset
+    const contentType = res.headers.get('content-type');
+
+    if (!contentType?.includes('json')) {
+        throw new Error(`Freight Club answered ${res.url} with ${contentType || 'no content type'} rather than JSON.`);
     }
 
     return await res.json();
@@ -71,7 +62,6 @@ function FreightClub(args) {
                 'Content-Type': 'application/json'
             },
             method: 'POST',
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -94,7 +84,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -124,7 +113,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -161,7 +149,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -198,7 +185,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -240,7 +226,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -267,7 +252,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -301,7 +285,6 @@ function FreightClub(args) {
                 'Content-Type': 'application/json'
             },
             method: 'POST',
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -335,7 +318,6 @@ function FreightClub(args) {
                 'Content-Type': 'application/json'
             },
             method: 'POST',
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
@@ -362,7 +344,6 @@ function FreightClub(args) {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
-            redirect: 'manual',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
 
