@@ -10,15 +10,15 @@ const HttpError = require('@stores.com/http-error');
  * @throws {HttpError} If the response status is not 200.
  */
 async function parseResponse(res) {
-    if (res.status !== 200) {
-        throw await HttpError.from(res);
-    }
-
-    // Error pages, WAF challenges and marketing sites all arrive with a 200, and res.json() on one throws a parse error naming a character offset
+    // Before the status, or HttpError puts a whole error page in err.text. Freight Club's own 401s declare no type and belong to HttpError.
     const contentType = res.headers.get('content-type');
 
-    if (!contentType?.includes('json')) {
-        throw new Error(`Freight Club answered ${res.url} with ${contentType || 'no content type'} rather than JSON.`);
+    if (contentType && !contentType.includes('json')) {
+        throw new Error(`Freight Club answered with ${contentType} rather than JSON.`);
+    }
+
+    if (res.status !== 200) {
+        throw await HttpError.from(res);
     }
 
     return await res.json();

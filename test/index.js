@@ -213,9 +213,9 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
         });
     });
     // The only test that does not go to the sandbox: asserting what the live API serves today would pin it to Freight Club's current routing
-    t.test('should throw when a 200 is not JSON', { concurrency: true }, async () => {
+    t.test('should throw rather than carry an HTML error page', { concurrency: true }, async () => {
         const server = http.createServer((req, res) => {
-            res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+            res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
             res.end('<!doctype html><html><head><title>Freight Club</title></head><body></body></html>');
         });
 
@@ -224,9 +224,9 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
         try {
             const htmlFreightClub = new FreightClub({ api_token: apiToken, url: `http://127.0.0.1:${server.address().port}` });
 
-            await assert.rejects(htmlFreightClub.getRates(createRateRequest(), { maxTime: 20 }), err => {
+            await assert.rejects(htmlFreightClub.getRates(createRateRequest()), err => {
                 assert.ok(!(err instanceof HttpError));
-                assert.match(err.message, /^Freight Club answered http:\/\/127\.0\.0\.1:\d+\/Rate\/GetRates\?maxTime=20 with text\/html; charset=utf-8 rather than JSON\.$/);
+                assert.strictEqual(err.message, 'Freight Club answered with text/html; charset=utf-8 rather than JSON.');
                 return true;
             });
         } finally {
