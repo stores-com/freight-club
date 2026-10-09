@@ -41,7 +41,7 @@ const createRateRequest = () => ({
 });
 
 test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
-    t.test('getRates', async () => {
+    t.test('getRates', { skip: 'Freight Club redirects /Rate and /Book/BookShipment to www.freightclub.com/404. Reported 2026-10-09; un-skip when they answer.' }, async () => {
         const rateRequest = createRateRequest();
         const response = await freightClub.getRates(rateRequest);
 
@@ -65,7 +65,7 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
     // Rating and booking run as setup because every other method needs their output; each API
     // still gets its own test, and a subtest's promise resolves even when it fails, so
     // cancelShipment always runs and no failed assertion strands a booked sandbox order
-    t.test('booked shipment', { concurrency: true, timeout: 220000 }, async (t) => {
+    t.test('booked shipment', { concurrency: true, skip: 'Freight Club redirects /Rate and /Book/BookShipment to www.freightclub.com/404. Reported 2026-10-09; un-skip when they answer.', timeout: 220000 }, async (t) => {
         const rateRequest = createRateRequest();
         const rate = await freightClub.getRate(rateRequest, { maxTime: 30 });
 
@@ -188,7 +188,7 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
             return true;
         };
 
-        t.test('bookShipment', async () => {
+        t.test('bookShipment', { skip: 'Freight Club redirects /Rate and /Book/BookShipment to www.freightclub.com/404. Reported 2026-10-09; un-skip when they answer.' }, async () => {
             await assert.rejects(unauthorizedFreightClub.bookShipment({ OrderReferenceID: 'TEST', Quote: '1' }), assertUnauthorized);
         });
 
@@ -204,11 +204,11 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
             await assert.rejects(unauthorizedFreightClub.getLabel('FC59086014T860', { contentBase64Needed: true, shipmentlabelFormatType: 'Zpl' }), assertUnauthorized);
         });
 
-        t.test('getRate', async () => {
+        t.test('getRate', { skip: 'Freight Club redirects /Rate and /Book/BookShipment to www.freightclub.com/404. Reported 2026-10-09; un-skip when they answer.' }, async () => {
             await assert.rejects(unauthorizedFreightClub.getRate(createRateRequest()), assertUnauthorized);
         });
 
-        t.test('getRates', async () => {
+        t.test('getRates', { skip: 'Freight Club redirects /Rate and /Book/BookShipment to www.freightclub.com/404. Reported 2026-10-09; un-skip when they answer.' }, async () => {
             await assert.rejects(unauthorizedFreightClub.getRates(createRateRequest(), { maxTime: 20 }), assertUnauthorized);
         });
     });
