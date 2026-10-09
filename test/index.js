@@ -212,12 +212,7 @@ test('FreightClub', { concurrency: true, timeout: 240000 }, (t) => {
             await assert.rejects(unauthorizedFreightClub.getRates(createRateRequest(), { maxTime: 20 }), assertUnauthorized);
         });
     });
-    /*
-        The one test that does not go to the sandbox. Asserting what the live API
-        serves today would pin the suite to Freight Club's current routing; what
-        this proves is that a 200 is not taken for an answer unless it is JSON,
-        whatever served it.
-    */
+    // The only test that does not go to the sandbox: asserting what the live API serves today would pin it to Freight Club's current routing
     t.test('should throw when a 200 is not JSON', { concurrency: true }, async () => {
         const server = http.createServer((req, res) => {
             res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });

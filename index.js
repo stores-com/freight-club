@@ -14,18 +14,10 @@ async function parseResponse(res) {
         throw await HttpError.from(res);
     }
 
-    /*
-        A 200 is not an answer unless it is JSON. A gateway's error page, a WAF
-        challenge and a marketing site all arrive with one, and `res.json()` on
-        any of them throws a parse error naming a character offset, which tells
-        whoever reads it nothing — in October 2026 a whole Squarespace page was
-        printed under a purchase order as the reason there were no freight
-        quotes. The URL is in the message because it is not always the one that
-        was asked for.
-    */
-    const contentType = res.headers.get('content-type') || '';
+    // Error pages, WAF challenges and marketing sites all arrive with a 200, and res.json() on one throws a parse error naming a character offset
+    const contentType = res.headers.get('content-type');
 
-    if (!contentType.includes('json')) {
+    if (!contentType?.includes('json')) {
         throw new Error(`Freight Club answered ${res.url} with ${contentType || 'no content type'} rather than JSON.`);
     }
 
