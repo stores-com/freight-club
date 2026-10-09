@@ -1,28 +1,20 @@
 const HttpError = require('@stores.com/http-error');
 
 /**
- * Requests a URL and returns the parsed JSON body.
+ * Throws for anything that is not a JSON 200 and returns the parsed JSON body otherwise.
  *
  * @private
- * @param {string} url - The URL to request.
- * @param {Object} init - Fetch options.
+ * @param {Response} res - A fetch Response.
  * @returns {Promise.<Object>} The parsed JSON body.
- * @throws {Error} If the response declares a content type that is not JSON.
+ * @throws {Error} If the response is not JSON.
  * @throws {HttpError} If the response status is not 200.
  */
-async function send(url, init) {
-    const res = await fetch(url, init);
-
-    /*
-        Checked before the status, because HttpError reads the body: a web page
-        served at any status would otherwise come back as 200kB of markup in
-        err.text. Only when a type is declared — Freight Club's own 401 and 405
-        carry none, and those belong to HttpError.
-    */
+async function parseResponse(res) {
+    // Before the status, or HttpError puts a whole error page in err.text. Freight Club's own 401s declare no type and belong to HttpError.
     const contentType = res.headers.get('content-type');
 
     if (contentType && !contentType.includes('json')) {
-        throw new Error(`Freight Club answered ${url} with ${contentType} rather than JSON${res.redirected ? `, from ${res.url}` : ''}.`);
+        throw new Error(`Freight Club answered with ${contentType} rather than JSON.`);
     }
 
     if (res.status !== 200) {
@@ -63,7 +55,7 @@ function FreightClub(args) {
      * const booking = await freightClub.bookShipment(request, { timeout: 180000 });
      */
     this.bookShipment = async function(request, options = {}) {
-        return await send(`${_options.url}/Book/BookShipment`, {
+        const res = await fetch(`${_options.url}/Book/BookShipment`, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -72,6 +64,8 @@ function FreightClub(args) {
             method: 'POST',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -86,12 +80,14 @@ function FreightClub(args) {
      * const cancellation = await freightClub.cancelShipment('FC59086014T860');
      */
     this.cancelShipment = async function(confirmationNumber, options = {}) {
-        return await send(`${_options.url}/Cancel/CancelShipment/${encodeURIComponent(confirmationNumber)}`, {
+        const res = await fetch(`${_options.url}/Cancel/CancelShipment/${encodeURIComponent(confirmationNumber)}`, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -124,7 +120,7 @@ function FreightClub(args) {
             throw await HttpError.from(res);
         }
 
-        // DownloadBol streams the document itself rather than a JSON envelope, so it keeps its own request
+        // DownloadBol streams the document itself rather than a JSON envelope
         return Buffer.from(await res.arrayBuffer());
     };
 
@@ -149,12 +145,14 @@ function FreightClub(args) {
             url += `?${queryString}`;
         }
 
-        return await send(url, {
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -183,12 +181,14 @@ function FreightClub(args) {
             url += `?${queryString}`;
         }
 
-        return await send(url, {
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -222,12 +222,14 @@ function FreightClub(args) {
             url += `?${queryString}`;
         }
 
-        return await send(url, {
+        const res = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -246,12 +248,14 @@ function FreightClub(args) {
      * const statuses = await freightClub.getOrderStatus({ OrderID: '59086014' });
      */
     this.getOrderStatus = async function(query, options = {}) {
-        return await send(`${_options.url}/api/orders/orderstatus?${new URLSearchParams(query)}`, {
+        const res = await fetch(`${_options.url}/api/orders/orderstatus?${new URLSearchParams(query)}`, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -274,7 +278,7 @@ function FreightClub(args) {
             url += `?maxTime=${options.maxTime}`;
         }
 
-        return await send(url, {
+        const res = await fetch(url, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -283,6 +287,8 @@ function FreightClub(args) {
             method: 'POST',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -305,7 +311,7 @@ function FreightClub(args) {
             url += `?maxTime=${options.maxTime}`;
         }
 
-        return await send(url, {
+        const res = await fetch(url, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -314,6 +320,8 @@ function FreightClub(args) {
             method: 'POST',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 
     /**
@@ -332,12 +340,14 @@ function FreightClub(args) {
      * const tracking = await freightClub.getShipmentTracking({ shipmentId: '59086014' });
      */
     this.getShipmentTracking = async function(query, options = {}) {
-        return await send(`${_options.url}/api/tracking/ShipmentTracking?${new URLSearchParams(query)}`, {
+        const res = await fetch(`${_options.url}/api/tracking/ShipmentTracking?${new URLSearchParams(query)}`, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
+
+        return await parseResponse(res);
     };
 }
 

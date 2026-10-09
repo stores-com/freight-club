@@ -2,7 +2,7 @@
 
 ## 0.0.4
 
-- Check the content type before the status, and name the URL that was requested. 0.0.3 only guarded a 200, so a web page served at a 404 still reached `HttpError`, which reads the body — 200kB of markup in `err.text`, printed by a consumer. The check now runs first, but only when a type is declared, because Freight Club's own 401 and 405 carry none and belong to `HttpError`. The message says what was asked for rather than where a redirect ended up: `Freight Club answered https://api.freightclub.com/Rate/GetRates with text/html;charset=utf-8 rather than JSON, from https://www.freightclub.com/404.`
+- Check the content type before the status. 0.0.3 only checked a 200, so an HTML error page served at a 404 still reached `HttpError` and came back as `err.text`.
 
 ## 0.0.3
 
