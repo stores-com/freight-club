@@ -1,16 +1,18 @@
 const HttpError = require('@stores.com/http-error');
 
 /**
- * Throws for anything that is not a JSON 200 and returns the parsed JSON body otherwise.
+ * Requests a URL and returns the parsed JSON body.
  *
  * @private
- * @param {Response} res - A fetch Response.
- * @param {string} url - The URL that was requested, which is not res.url once a redirect has been followed.
+ * @param {string} url - The URL to request.
+ * @param {Object} init - Fetch options.
  * @returns {Promise.<Object>} The parsed JSON body.
  * @throws {Error} If the response declares a content type that is not JSON.
  * @throws {HttpError} If the response status is not 200.
  */
-async function parseResponse(res, url) {
+async function send(url, init) {
+    const res = await fetch(url, init);
+
     /*
         Checked before the status, because HttpError reads the body: a web page
         served at any status would otherwise come back as 200kB of markup in
@@ -61,9 +63,7 @@ function FreightClub(args) {
      * const booking = await freightClub.bookShipment(request, { timeout: 180000 });
      */
     this.bookShipment = async function(request, options = {}) {
-        const url = `${_options.url}/Book/BookShipment`;
-
-        const res = await fetch(url, {
+        return await send(`${_options.url}/Book/BookShipment`, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -72,8 +72,6 @@ function FreightClub(args) {
             method: 'POST',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -88,16 +86,12 @@ function FreightClub(args) {
      * const cancellation = await freightClub.cancelShipment('FC59086014T860');
      */
     this.cancelShipment = async function(confirmationNumber, options = {}) {
-        const url = `${_options.url}/Cancel/CancelShipment/${encodeURIComponent(confirmationNumber)}`;
-
-        const res = await fetch(url, {
+        return await send(`${_options.url}/Cancel/CancelShipment/${encodeURIComponent(confirmationNumber)}`, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -130,7 +124,7 @@ function FreightClub(args) {
             throw await HttpError.from(res);
         }
 
-        // DownloadBol streams the document itself rather than a JSON envelope
+        // DownloadBol streams the document itself rather than a JSON envelope, so it keeps its own request
         return Buffer.from(await res.arrayBuffer());
     };
 
@@ -155,14 +149,12 @@ function FreightClub(args) {
             url += `?${queryString}`;
         }
 
-        const res = await fetch(url, {
+        return await send(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -191,14 +183,12 @@ function FreightClub(args) {
             url += `?${queryString}`;
         }
 
-        const res = await fetch(url, {
+        return await send(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -232,14 +222,12 @@ function FreightClub(args) {
             url += `?${queryString}`;
         }
 
-        const res = await fetch(url, {
+        return await send(url, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -258,16 +246,12 @@ function FreightClub(args) {
      * const statuses = await freightClub.getOrderStatus({ OrderID: '59086014' });
      */
     this.getOrderStatus = async function(query, options = {}) {
-        const url = `${_options.url}/api/orders/orderstatus?${new URLSearchParams(query)}`;
-
-        const res = await fetch(url, {
+        return await send(`${_options.url}/api/orders/orderstatus?${new URLSearchParams(query)}`, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -290,7 +274,7 @@ function FreightClub(args) {
             url += `?maxTime=${options.maxTime}`;
         }
 
-        const res = await fetch(url, {
+        return await send(url, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -299,8 +283,6 @@ function FreightClub(args) {
             method: 'POST',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -323,7 +305,7 @@ function FreightClub(args) {
             url += `?maxTime=${options.maxTime}`;
         }
 
-        const res = await fetch(url, {
+        return await send(url, {
             body: JSON.stringify(request),
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`,
@@ -332,8 +314,6 @@ function FreightClub(args) {
             method: 'POST',
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 
     /**
@@ -352,16 +332,12 @@ function FreightClub(args) {
      * const tracking = await freightClub.getShipmentTracking({ shipmentId: '59086014' });
      */
     this.getShipmentTracking = async function(query, options = {}) {
-        const url = `${_options.url}/api/tracking/ShipmentTracking?${new URLSearchParams(query)}`;
-
-        const res = await fetch(url, {
+        return await send(`${_options.url}/api/tracking/ShipmentTracking?${new URLSearchParams(query)}`, {
             headers: {
                 'Authorization': `Bearer ${_options.api_token}`
             },
             signal: AbortSignal.timeout(options.timeout || _options.timeout)
         });
-
-        return await parseResponse(res, url);
     };
 }
 
